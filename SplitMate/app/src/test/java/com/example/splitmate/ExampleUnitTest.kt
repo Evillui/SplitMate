@@ -1,4 +1,4 @@
-package ru.fefu.splitmate
+package com.example.splitmate
 
 import org.junit.Test
 

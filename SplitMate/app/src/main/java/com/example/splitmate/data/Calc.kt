@@ -1,6 +1,6 @@
-package ru.fefu.splitmate.data.model
+package com.example.splitmate.data
 
-data class Calculation(
+data class Calc(
     val id: String = "",
     val totalAmount: Double = 0.0,
     val peopleCount: Int = 1,

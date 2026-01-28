@@ -1,4 +1,4 @@
-package ru.fefu.splitmate.ui.screens
+package com.example.splitmate.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,15 +21,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ru.fefu.splitmate.data.model.TipOption
-import ru.fefu.splitmate.data.model.defaultTipOptions
-import ru.fefu.splitmate.ui.viewmodel.SplitEvent
-import ru.fefu.splitmate.ui.viewmodel.SplitUiState
+import com.example.splitmate.data.TipOption
+import com.example.splitmate.data.defaultTipOptions
+import com.example.splitmate.viewmodel.SplitEvent
+import com.example.splitmate.viewmodel.SplitUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,12 +52,11 @@ fun InputScreen(
             Text(
                 text = "Введите данные",
                 fontSize = 28.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
 
             Spacer(modifier = Modifier.height(32.dp))
-
 
             OutlinedTextField(
                 value = uiState.totalAmount,
@@ -66,12 +66,12 @@ fun InputScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 prefix = { Text("₽ ") },
-                isError = uiState.totalAmountDouble <= 0 && uiState.totalAmount.isNotEmpty()
+                isError = uiState.showErrors && uiState.totalError != null
             )
 
-            if (uiState.totalAmountDouble <= 0 && uiState.totalAmount.isNotEmpty()) {
+            if (uiState.showErrors && uiState.totalError != null) {
                 Text(
-                    text = "Сумма должна быть больше 0",
+                    text = uiState.totalError,
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
@@ -80,20 +80,19 @@ fun InputScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-
             OutlinedTextField(
                 value = uiState.peopleCount,
                 onValueChange = { onEvent(SplitEvent.UpdatePeople(it)) },
-                label = { Text("Количество человек") },
+                label = { Text("Количество персон") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
-                isError = uiState.peopleCountInt <= 0 && uiState.peopleCount.isNotEmpty()
+                isError = uiState.showErrors && uiState.peopleError != null
             )
 
-            if (uiState.peopleCountInt <= 0 && uiState.peopleCount.isNotEmpty()) {
+            if (uiState.showErrors && uiState.peopleError != null) {
                 Text(
-                    text = "Количество людей должно быть больше 0",
+                    text = uiState.peopleError,
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
@@ -101,7 +100,6 @@ fun InputScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-
 
             Text(
                 text = "Чаевые",
@@ -119,8 +117,7 @@ fun InputScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-
-            if (!uiState.isCalculateEnabled && (uiState.totalAmount.isNotEmpty() || uiState.peopleCount != "1")) {
+            if (uiState.showErrors && !uiState.isCalculateEnabled) {
                 Text(
                     text = "Заполните все поля корректно для расчета",
                     fontSize = 14.sp,
@@ -128,10 +125,9 @@ fun InputScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
-
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -164,9 +160,7 @@ fun TipOptionsRow(
     selected: TipOption,
     onSelect: (TipOption) -> Unit
 ) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(options) { tip ->
             TipOptionItem(
                 tip = tip,

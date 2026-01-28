@@ -1,4 +1,4 @@
-package ru.fefu.splitmate.ui.theme
+package com.example.splitmate.ui.theme
 
 import androidx.compose.material3.Typography
 

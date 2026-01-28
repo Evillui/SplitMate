@@ -1,4 +1,4 @@
-package ru.fefu.splitmate.data.model
+package com.example.splitmate.data
 
 data class TipOption(
     val percentage: Int,
@@ -10,5 +10,5 @@ val defaultTipOptions = listOf(
     TipOption(5, "5%"),
     TipOption(10, "10%"),
     TipOption(15, "15%"),
-    TipOption(20, "20%"),
+    TipOption(20, "20%")
 )
