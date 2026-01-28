@@ -33,7 +33,6 @@ fun AppNav(viewModel: SplitViewModel) {
 
     val uiState by viewModel.uiState.observeAsState(SplitUiState())
 
-    // Toast one-shot events
     val toastEvent by viewModel.toastEvent.observeAsState()
     LaunchedEffect(toastEvent) {
         toastEvent?.getContentIfNotHandled()?.let { msg ->
