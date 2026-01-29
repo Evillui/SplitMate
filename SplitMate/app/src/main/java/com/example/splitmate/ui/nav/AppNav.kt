@@ -3,8 +3,6 @@ package com.example.splitmate.ui.nav
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,7 +13,6 @@ import com.example.splitmate.ui.screens.HomeScreen
 import com.example.splitmate.ui.screens.InputScreen
 import com.example.splitmate.ui.screens.ResultScreen
 import com.example.splitmate.viewmodel.SplitEvent
-import com.example.splitmate.viewmodel.SplitUiState
 import com.example.splitmate.viewmodel.SplitViewModel
 
 object Routes {
@@ -31,41 +28,30 @@ fun AppNav(viewModel: SplitViewModel) {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    val uiState by viewModel.uiState.observeAsState(SplitUiState())
+    val uiState = viewModel.uiState
 
-    val toastEvent by viewModel.toastEvent.observeAsState()
-    LaunchedEffect(toastEvent) {
-        toastEvent?.getContentIfNotHandled()?.let { msg ->
+    LaunchedEffect(viewModel.toastMessage) {
+        viewModel.toastMessage?.let { msg ->
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            viewModel.consumeToast()
         }
     }
 
     LaunchedEffect(uiState.currentCalculation?.id) {
         val calcId = uiState.currentCalculation?.id ?: return@LaunchedEffect
-
-        val currentRoute = navController.currentBackStackEntry?.destination?.route
-        if (currentRoute == Routes.RESULT.replace("{calcId}", calcId)) return@LaunchedEffect
-
         navController.navigate(Routes.createResultRoute(calcId))
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = Routes.HOME
-    ) {
+    NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
-            HomeScreen(
-                onStartClick = { navController.navigate(Routes.INPUT) }
-            )
+            HomeScreen(onStartClick = { navController.navigate(Routes.INPUT) })
         }
 
         composable(Routes.INPUT) {
             InputScreen(
                 uiState = uiState,
                 onEvent = viewModel::onEvent,
-                onCalculate = {
-                    viewModel.onEvent(SplitEvent.Calculate)
-                },
+                onCalculate = { viewModel.onEvent(SplitEvent.Calculate) },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -82,9 +68,7 @@ fun AppNav(viewModel: SplitViewModel) {
 
             ResultScreen(
                 calculation = calculation,
-                onEdit = {
-                    navController.popBackStack(Routes.INPUT, inclusive = false)
-                },
+                onEdit = { navController.popBackStack(Routes.INPUT, inclusive = false) },
                 onNewCalculation = {
                     viewModel.onEvent(SplitEvent.Reset)
                     navController.navigate(Routes.HOME) {

@@ -1,7 +1,8 @@
 package com.example.splitmate.viewmodel
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.example.splitmate.data.Calc
 import com.example.splitmate.data.TipOption
@@ -9,123 +10,124 @@ import com.example.splitmate.data.defaultTipOptions
 
 class SplitViewModel : ViewModel() {
 
-    private val _uiState = MutableLiveData(SplitUiState())
-    val uiState: LiveData<SplitUiState> = _uiState
+    var uiState by mutableStateOf(SplitUiState())
+        private set
 
-    private val _toastEvent = MutableLiveData<Event<String>>()
-    val toastEvent: LiveData<Event<String>> = _toastEvent
+    var toastMessage by mutableStateOf<String?>(null)
+        private set
 
-    fun getCalculationById(id: String): Calc? =
-        _uiState.value?.calculations?.find { it.id == id }
-
-    fun getLatestCalculation(): Calc? =
-        _uiState.value?.calculations?.lastOrNull()
+    fun consumeToast() {
+        toastMessage = null
+    }
 
     fun onEvent(event: SplitEvent) {
-        val state = _uiState.value ?: SplitUiState()
-
         when (event) {
             is SplitEvent.UpdateTotal -> {
-                val result = validateTotal(event.value)
+                val parsed = event.value
+                val total = parsed ?: 0.0
+                val totalRes = if (parsed == null) {
+                    ValidationResult(false, "Введите корректное число")
+                } else {
+                    validateTotal(total)
+                }
 
-                _uiState.value = state.copy(
-                    totalAmount = event.value,
-                    totalError = result.errorMessage,
-                    showErrors = event.value.isNotEmpty(),
-                    isCalculateEnabled = isInputValid(event.value, state.peopleCount)
+                val peopleRes = validatePeople(uiState.peopleCount)
+
+                uiState = uiState.copy(
+                    totalAmount = total,
+                    totalError = totalRes.errorMessage,
+                    showErrors = true,
+                    isCalculateEnabled = totalRes.isValid && peopleRes.isValid
                 )
             }
 
             is SplitEvent.UpdatePeople -> {
-                val result = validatePeople(event.value)
+                val parsed = event.value
+                val people = parsed ?: 0
+                val peopleRes = if (parsed == null) {
+                    ValidationResult(false, "Введите целое число")
+                } else {
+                    validatePeople(people)
+                }
 
-                _uiState.value = state.copy(
-                    peopleCount = event.value,
-                    peopleError = result.errorMessage,
-                    showErrors = event.value.isNotEmpty(),
-                    isCalculateEnabled = isInputValid(state.totalAmount, event.value)
+                val totalRes = validateTotal(uiState.totalAmount)
+
+                uiState = uiState.copy(
+                    peopleCount = people,
+                    peopleError = peopleRes.errorMessage,
+                    showErrors = true,
+                    isCalculateEnabled = totalRes.isValid && peopleRes.isValid
                 )
             }
 
             is SplitEvent.SelectTip -> {
-                _uiState.value = state.copy(selectedTip = event.tipOption)
+                uiState = uiState.copy(selectedTip = event.tipOption)
             }
 
             SplitEvent.Calculate -> {
-                val totalRes = validateTotal(state.totalAmount)
-                val peopleRes = validatePeople(state.peopleCount)
+                val totalRes = validateTotal(uiState.totalAmount)
+                val peopleRes = validatePeople(uiState.peopleCount)
 
                 if (!totalRes.isValid || !peopleRes.isValid) {
-                    _uiState.value = state.copy(
+                    uiState = uiState.copy(
                         totalError = totalRes.errorMessage,
                         peopleError = peopleRes.errorMessage,
-                        showErrors = true
+                        showErrors = true,
+                        isCalculateEnabled = false
                     )
                     return
                 }
 
                 val calculation = Calc(
                     id = System.currentTimeMillis().toString(),
-                    totalAmount = state.totalAmount.toDouble(),
-                    peopleCount = state.peopleCount.toInt(),
-                    tipPercentage = state.selectedTip.percentage
+                    totalAmount = uiState.totalAmount,
+                    peopleCount = uiState.peopleCount,
+                    tipPercentage = uiState.selectedTip.percentage
                 )
 
-                val updatedHistory = (state.calculations + calculation).takeLast(5)
+                val updatedHistory = (uiState.calculations + calculation).takeLast(5)
 
-                _uiState.value = state.copy(
+                uiState = uiState.copy(
                     currentCalculation = calculation,
                     calculations = updatedHistory,
                     totalError = null,
                     peopleError = null,
-                    showErrors = false
+                    showErrors = false,
+                    isCalculateEnabled = false
                 )
 
-                _toastEvent.value = Event("Расчет сохранен")
+                toastMessage = "Расчет сохранен"
             }
 
             SplitEvent.Reset -> {
-                _uiState.value = SplitUiState(
+                uiState = SplitUiState(
                     selectedTip = defaultTipOptions.getOrElse(2) { defaultTipOptions.first() }
                 )
-                _toastEvent.value = Event("Форма очищена")
+                toastMessage = "Форма очищена"
             }
         }
     }
 
-    private fun isInputValid(total: String, people: String): Boolean =
-        validateTotal(total).isValid && validatePeople(people).isValid
-
-    private fun validateTotal(total: String): ValidationResult {
-        if (total.isBlank()) return ValidationResult(false, null)
-
-        val value = total.toDoubleOrNull()
-            ?: return ValidationResult(false, "Введите корректное число")
-
-        if (value <= 0) {
-            return ValidationResult(false, "Сумма не может быть отрицательной или равной 0")
+    private fun validateTotal(total: Double): ValidationResult {
+        return if (total <= 0.0) {
+            ValidationResult(false, "Сумма должна быть больше 0")
+        } else {
+            ValidationResult(true)
         }
-
-        return ValidationResult(true)
     }
 
-    private fun validatePeople(people: String): ValidationResult {
-        if (people.isBlank()) return ValidationResult(false, null)
-
-        val value = people.toIntOrNull()
-            ?: return ValidationResult(false, "Введите целое число")
-
-        if (value <= 0) {
-            return ValidationResult(false, "Количество человек должно быть больше 0")
+    private fun validatePeople(people: Int): ValidationResult {
+        return if (people <= 0) {
+            ValidationResult(false, "Количество человек должно быть больше 0")
+        } else {
+            ValidationResult(true)
         }
-
-        return ValidationResult(true)
     }
 }
 
 data class SplitUiState(
-    val totalAmount: String = "",
-    val peopleCount: String = "",
+    val totalAmount: Double = 0.0,
+    val peopleCount: Int = 0,
     val selectedTip: TipOption = defaultTipOptions.getOrElse(2) { defaultTipOptions.first() },
     val isCalculateEnabled: Boolean = false,
     val currentCalculation: Calc? = null,
@@ -136,8 +138,8 @@ data class SplitUiState(
 )
 
 sealed class SplitEvent {
-    data class UpdateTotal(val value: String) : SplitEvent()
-    data class UpdatePeople(val value: String) : SplitEvent()
+    data class UpdateTotal(val value: Double?) : SplitEvent()
+    data class UpdatePeople(val value: Int?) : SplitEvent()
     data class SelectTip(val tipOption: TipOption) : SplitEvent()
     object Calculate : SplitEvent()
     object Reset : SplitEvent()
@@ -147,15 +149,3 @@ private data class ValidationResult(
     val isValid: Boolean,
     val errorMessage: String? = null
 )
-
-class Event<out T>(private val content: T) {
-    private var hasBeenHandled = false
-
-    fun getContentIfNotHandled(): T? {
-        if (hasBeenHandled) return null
-        hasBeenHandled = true
-        return content
-    }
-
-    fun peekContent(): T = content
-}

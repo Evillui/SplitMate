@@ -59,8 +59,11 @@ fun InputScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             OutlinedTextField(
-                value = uiState.totalAmount,
-                onValueChange = { onEvent(SplitEvent.UpdateTotal(it)) },
+                value = if (uiState.totalAmount == 0.0) "" else uiState.totalAmount.toString(),
+                onValueChange = { text ->
+                    val normalized = text.replace(',', '.')
+                    onEvent(SplitEvent.UpdateTotal(normalized.toDoubleOrNull()))
+                },
                 label = { Text("Общая сумма") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -81,8 +84,10 @@ fun InputScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             OutlinedTextField(
-                value = uiState.peopleCount,
-                onValueChange = { onEvent(SplitEvent.UpdatePeople(it)) },
+                value = if (uiState.peopleCount == 0) "" else uiState.peopleCount.toString(),
+                onValueChange = { text ->
+                    onEvent(SplitEvent.UpdatePeople(text.toIntOrNull()))
+                },
                 label = { Text("Количество персон") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
